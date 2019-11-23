@@ -1,0 +1,17 @@
+OldSize: 2.96 KB, NewSize: 0.92 KB, Compression: 68.9234%
+OldSize: 151.08 KB, NewSize: 0.51 KB, Compression: 99.6626%
+OldSize: 6336.59 KB, NewSize: 2316.90 KB, Compression: 63.4361%
+OldSize: 6336.59 KB, NewSize: 2316.90 KB, Compression: 63.4361%
+File: 'monitored/sample.pdf' (size: 2.96 KB), archived to 'archive/archive/sample.pdf.gz' (size: 0.92 KB) compression rate: 68.9234%
+File: 'monitored/newfile.txt' (size: 151.08 KB), archived as 'archive/archived/newfile.txt.gz.gz' (size: 0.51 KB) compression rate: 99.6626%
+File: 'monitored/sample.pdf' (size: 2.96 KB), archived as 'archive/archive/sample.pdf.gz.gz' (size: 0.92 KB) compression rate: 68.9234%
+File: 'monitored/sample.pdf' (size: 2.96 KB), archived as 'archive/sample.pdf.gz' (size: 0.92 KB) compression rate: 68.9234%
+File: 'monitored/asd/newfile.txt' (size: 151.08 KB), archived as 'archive/asd_newfile.txt.gz' (size: 0.51 KB) compression rate: 99.6626%
+File: 'monitored/asd/dsa/newfile.txt' (size: 151.08 KB), archived as 'archive/asd_dsa_newfile.txt.gz' (size: 0.51 KB) compression rate: 99.6626%
+File: 'monitored/big.txt' (size: 6336.59 KB), archived as 'archive/big.txt.gz' (size: 2316.90 KB) compression rate: 63.4361%
+File: 'monitored/big.txt' (size: 6336.59 KB), archived as 'archive/big.txt.gz' (size: 2316.90 KB) compression rate: 63.4361%
+File: 'monitored/big.txt' (size: 6336.59 KB), archived as 'archive/big.txt.gz' (size: 2316.90 KB) compression rate: 63.4361%
+File: 'monitored/asd/big.txt' (size: 6336.59 KB), archived as 'archive/asd_big.txt.gz' (size: 2239.82 KB) compression rate: 64.6526%
+File: 'monitored/asd/big.txt' (size: 6336.59 KB), archived as 'archive/asd_big.txt.gz' (size: 2316.90 KB) compression rate: 63.4361%
+File: 'monitored/asd/dsa/big.txt' (size: 6336.59 KB), archived as 'archive/asd_dsa_big.txt.gz' (size: 651.71 KB) compression rate: 89.7151%
+File: 'monitored/asd/dsa/big.txt' (size: 6336.59 KB), archived as 'archive/asd_dsa_big.txt.gz' (size: 2316.90 KB) compression rate: 63.4361%
