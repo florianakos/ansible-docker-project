@@ -3,29 +3,32 @@ package main
 import (
 	"compress/gzip"
 	"fmt"
+	"github.com/fsnotify/fsnotify"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
-
-	"github.com/fsnotify/fsnotify"
+	"time"
 )
 
-const openFileOptions int = os.O_CREATE | os.O_RDWR
-const openFilePermissions os.FileMode = 0660
+// some constants related to files and permissions on them
+const CREATE_READ_WRITE int = os.O_CREATE | os.O_RDWR
+const OPEN_FILE_PERMISSION os.FileMode = 0660
+const APPEND_OR_CREATE_READONLY int = os.O_APPEND | os.O_CREATE | os.O_WRONLY
 
+// helper func that closes a file descriptor properly
 func closeFile(handle *os.File) {
 	if handle == nil {
 		return
 	}
-
 	err := handle.Close()
 	if err != nil {
 		fmt.Println("[ERROR] Closing file:", err)
 	}
 }
 
-func readFile(s string) []byte {
+// convenience function that returns the contents of a file as a byte slice
+func extractFileContents(s string) []byte {
 	bts, err := ioutil.ReadFile(s)
 	if err != nil {
 		return nil
@@ -33,112 +36,101 @@ func readFile(s string) []byte {
 	return bts
 }
 
-func logItAll(msg string) {
-	log.Print(msg)
-	f, err := os.OpenFile("service_history.log",
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+// helper function that is configured to log to a local file in directory
+func logLocal(msg string) {
+	// open file for writing, create if doesnt exist
+	f, err := os.OpenFile("service_history.log", APPEND_OR_CREATE_READONLY, 0644)
 	if err != nil {
 		log.Println(err)
+		return
 	}
 	defer f.Close()
-	if _, err := f.WriteString(msg); err != nil {
-		log.Println(err)
-	}
+
+	// write log msg to file
+	f.WriteString(time.Now().Format("2006-01-02 15:04:05") + ": " + msg)
 }
 
-func percentage(old, new float64) (delta float64) {
-	diff := float64(old - new)
-	delta = (diff / float64(old)) * 100
-	return
+// helper function that returns the size of a file given by its relative path
+func getFileSize(path string) float64 {
+	// open file for reading
+	f, _ := os.Open(path)
+	defer f.Close()
+
+	// get file stats and return size as float64
+	s, _ := f.Stat()
+	return float64(s.Size())
+
 }
 
-func compressionRateCalc(old string, new string) {
-	f1, err := os.Open(old)
-	if err != nil {
-		return
-	}
-	defer f1.Close()
+// function to handle the compression and logging for statistics
+func processFile(oldName string) {
+	// construct filename for new gzipped file
+	newName := "archive/" + strings.ReplaceAll(oldName[10:], "/", "_") + ".gz"
 
-	f2, err := os.Open(new)
-	if err != nil {
-		return
-	}
-	defer f2.Close()
-
-	s1, err := f1.Stat()
-	if err != nil {
-		return
-	}
-
-	s2, err := f2.Stat()
-	if err != nil {
-		return
-	}
-	oldSize := float64(s1.Size() + 0.0)
-	newSize := float64(s2.Size() + 0.0)
-
-	logItAll(fmt.Sprintf("File: '%s' (size: %.2f KB), archived as 'archive/%s' (size: %.2f KB) compression rate: %.4f%%\n", old, oldSize/1024.0, strings.ReplaceAll(new[8:], "/", "_"), newSize/1024.0, percentage(oldSize, newSize)))
-}
-
-func zipAndArchive(filePath string) {
-	oldName := filePath
-	newName := "archive/" + strings.ReplaceAll(filePath[10:], "/", "_") + ".gz"
-
-	handle, err := os.OpenFile(newName, openFileOptions, openFilePermissions)
+	// create the file for writing
+	handle, err := os.OpenFile(newName, CREATE_READ_WRITE, OPEN_FILE_PERMISSION)
 	if err != nil {
 		log.Fatalln("[ERROR] Opening file:", err)
 		return
 	}
+	defer closeFile(handle)
+
+	// create the GZIP writer
 	zipWriter, err := gzip.NewWriterLevel(handle, 9)
 	if err != nil {
-		log.Println("[ERROR] New gzip writer:", err)
+		log.Println("[ERROR] trying to create gzip writer:", err)
 		return
 	}
-	_, err = zipWriter.Write(readFile(filePath))
+	// read concents of original file and write to gzipped file
+	_, err = zipWriter.Write(extractFileContents(oldName))
 	if err != nil {
-		log.Println("[ERROR] Writing:", err)
+		log.Println("[ERROR] trying to write with gzip:", err)
 		return
 	}
-	err = zipWriter.Close()
-	if err != nil {
-		log.Println("[ERROR] Closing zip writer:", err)
-		return
-	}
-	// fmt.Println("[INFO] Number of bytes written:", numberOfBytesWritten)
-	closeFile(handle)
-	// calc and log compression compr rate
-	compressionRateCalc(oldName, newName)
+	defer zipWriter.Close()
+
+	// calc and log compression rate
+	oS := getFileSize(oldName)
+	nS := getFileSize(newName)
+	compRate := ((oS - nS) / oS) * 100.0
+
+	// log the result of file operation
+	logLocal(fmt.Sprintf("New file put to archive 'archive/%s' with compression rate: %.4f%%\n", strings.ReplaceAll(newName[8:], "/", "_"), compRate))
 }
 
 func main() {
-	// new watcher instance
+	// Initial startup message
+	log.Println("File watcher is starting up ...")
+	
+	// create new watcher instance
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer watcher.Close()
-
+	
+	// create a channel that will be blocking the main routine indefinitely
 	done := make(chan bool)
+	
+	// while in a parallel goroutine we look for events incoming from fsnotify
 	go func() {
+		log.Println("File watcher started monitoring!")
 		for {
 			select {
+			// catch valid Events from fsnotify
 			case event, ok := <-watcher.Events:
 				if !ok {
 					return
 				}
 				// if new file was written into the watched folder
 				if event.Op&fsnotify.Write == fsnotify.Write {
-					// log.Println("sending to compress and archive", event.Name)
-					zipAndArchive(event.Name)
+					go processFile(event.Name)
 				// if new folder was created in watched folder add it as watched too
 				} else if event.Op&fsnotify.Create == fsnotify.Create {
 					fi, _ := os.Stat(event.Name)
+					// if the object created was a folder, then add it to the watcher
 					if mode := fi.Mode(); mode.IsDir() {
-						err = watcher.Add(event.Name)
-						if err != nil {
-							log.Println(err)
-							return
-						}
+						watcher.Add(event.Name)
 					}
 				}
 			case err, ok := <-watcher.Errors:
@@ -150,10 +142,12 @@ func main() {
 		}
 	}()
 
-	// set up local directory 'monitored' as the target for watching changes
+	// by default the local directory is set up for notifications
 	err = watcher.Add("monitored/")
 	if err != nil {
 		log.Fatal(err)
 	}
+	
+	// blocking indefinitely
 	<-done
 }
