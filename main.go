@@ -64,7 +64,7 @@ func getFileSize(path string) float64 {
 // function to handle the compression and logging for statistics
 func processFile(oldName string) {
 	//time.Sleep(1000*time.Nanosecond)
-	
+
 	// construct filename for new gzipped file
 	newName := "archive/" + strings.ReplaceAll(oldName[10:], "/", "_") + ".gz"
 
@@ -102,17 +102,17 @@ func processFile(oldName string) {
 func main() {
 	// Initial startup message
 	log.Println("File watcher is starting up ...")
-	
+
 	// create new watcher instance
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer watcher.Close()
-	
+
 	// create a channel that will be blocking the main routine indefinitely
 	done := make(chan bool)
-	
+
 	// while in a parallel goroutine we look for events incoming from fsnotify
 	go func() {
 		log.Println("File watcher started monitoring!")
@@ -123,15 +123,16 @@ func main() {
 				if !ok {
 					return
 				}
+				// we process file when its written (sometimes multiple times written)
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					go processFile(event.Name)
 				// a tradeoff exists between listening for Create vs Write!!!
-				if event.Op&fsnotify.Create == fsnotify.Create {
+				} else if event.Op&fsnotify.Create == fsnotify.Create {
 					fi, _ := os.Stat(event.Name)
 					// if the object created was a folder, then add it to the watcher
 					if mode := fi.Mode(); mode.IsDir() {
 						watcher.Add(event.Name)
 					// if the object created is not dir, then its a file so we process it
-					} else {
-						go processFile(event.Name)
 					}
 				}
 			case err, ok := <-watcher.Errors:
@@ -148,7 +149,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	// blocking indefinitely
 	<-done
 }
