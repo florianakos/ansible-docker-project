@@ -59,11 +59,12 @@ func getFileSize(path string) float64 {
 	// get file stats and return size as float64
 	s, _ := f.Stat()
 	return float64(s.Size())
-
 }
 
 // function to handle the compression and logging for statistics
 func processFile(oldName string) {
+	//time.Sleep(1000*time.Nanosecond)
+	
 	// construct filename for new gzipped file
 	newName := "archive/" + strings.ReplaceAll(oldName[10:], "/", "_") + ".gz"
 
@@ -122,15 +123,15 @@ func main() {
 				if !ok {
 					return
 				}
-				// if new file was written into the watched folder
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					go processFile(event.Name)
-				// if new folder was created in watched folder add it as watched too
-				} else if event.Op&fsnotify.Create == fsnotify.Create {
+				// a tradeoff exists between listening for Create vs Write!!!
+				if event.Op&fsnotify.Create == fsnotify.Create {
 					fi, _ := os.Stat(event.Name)
 					// if the object created was a folder, then add it to the watcher
 					if mode := fi.Mode(); mode.IsDir() {
 						watcher.Add(event.Name)
+					// if the object created is not dir, then its a file so we process it
+					} else {
+						go processFile(event.Name)
 					}
 				}
 			case err, ok := <-watcher.Errors:
